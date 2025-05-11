@@ -167,11 +167,25 @@ wss.on('connection', (ws) => {
 server.on('request', (req, res) => {
   // Serve static files from /public
   let filePath = req.url === '/' ? '/index.html' : req.url;
-  filePath = path.join(__dirname, '../public', filePath);
+  
+  // Гнучкіший підхід до визначення шляху до public
+  let publicPath = path.join(__dirname, 'public');
+  // Перевіряємо наявність папки public у різних місцях
+  if (!fs.existsSync(publicPath)) {
+    publicPath = path.join(__dirname, '..', 'public');
+    if (!fs.existsSync(publicPath)) {
+      publicPath = path.join(process.cwd(), 'public');
+    }
+  }
+  
+  filePath = path.join(publicPath, filePath.replace(/^\//, ''));
+  console.log('Trying to serve:', filePath);
+  
   fs.readFile(filePath, (err, data) => {
     if (err) {
+      console.error('File read error:', err);
       res.writeHead(404);
-      res.end('Not found');
+      res.end(`Not found: ${req.url}`);
       return;
     }
     let ext = path.extname(filePath);
