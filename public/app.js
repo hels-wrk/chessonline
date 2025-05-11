@@ -51,11 +51,31 @@ function handleServerMessage(msg) {
     currentBoardState = payload.board;
     renderBoard(currentBoardState, playerColor);
     displayMessage('Очікування суперника...');
+    
+    // Показуємо інструкцію для мобільних пристроїв
+    if (isTouchDevice) {
+      setTimeout(() => {
+        displayMessage('На мобільному: натисніть спочатку на фігуру, потім на цільову клітинку', 'info');
+        setTimeout(() => {
+          displayMessage('Очікування суперника...'); 
+        }, 3000);
+      }, 1000);
+    }
   } else if (type === 'GAME_UPDATED') {
     currentBoardState = payload.board;
     currentPlayer = payload.currentPlayer;
     renderBoard(currentBoardState, playerColor);
-    displayMessage(currentPlayer === playerColor ? 'Ваш хід' : 'Хід суперника');
+    
+    if (currentPlayer === playerColor) {
+      if (isTouchDevice) {
+        displayMessage('Ваш хід. Натисніть на фігуру, потім на цільову клітинку');
+      } else {
+        displayMessage('Ваш хід');
+      }
+    } else {
+      displayMessage('Хід суперника');
+    }
+    
     promotionModal.classList.add('hidden');
   } else if (type === 'ERROR') {
     displayMessage(payload.message, 'error');
@@ -109,9 +129,10 @@ function renderBoard(board, color) {
           pieceDiv.addEventListener('dragstart', onDragStart);
         }
         
-        // На сенсорних пристроях використовуємо тач-події
+        // На сенсорних пристроях додаємо клік обробник і тач-обробник
         if (isOwn && currentPlayer === playerColor && isTouchDevice) {
           pieceDiv.addEventListener('touchstart', onTouchStart, { passive: false });
+          pieceDiv.addEventListener('click', onPieceClick); // Додаємо click як запасний варіант
         }
         
         square.appendChild(pieceDiv);
@@ -121,9 +142,9 @@ function renderBoard(board, color) {
       square.addEventListener('dragover', e => e.preventDefault());
       square.addEventListener('drop', onDrop);
       
-      // Тач-події для мобільних
+      // Для сенсорних додаємо клік на клітинку для ходів
       if (isTouchDevice) {
-        square.addEventListener('touchend', onTouchEnd, { passive: false });
+        square.addEventListener('click', onSquareClick);
       }
       
       chessBoardContainer.appendChild(square);
@@ -154,8 +175,32 @@ function onTouchStart(e) {
   e.preventDefault();
   const touchedPiece = e.target;
   
+  // Якщо вже є вибрана фігура і ми натиснули на клітинку, спробуємо зробити хід
+  if (dragFrom && touchSelectedPiece) {
+    // Завершуємо перетягування при натисканні на будь-яку клітинку
+    const targetSquare = touchedPiece.closest('.square') || touchedPiece;
+    const toX = parseInt(targetSquare.dataset.x);
+    const toY = parseInt(targetSquare.dataset.y);
+    
+    // Перевіряємо, що ми не натиснули на ту ж саму клітинку
+    if (!(dragFrom.x === toX && dragFrom.y === toY)) {
+      // Робимо хід
+      send('MAKE_MOVE', { from: [dragFrom.x, dragFrom.y], to: [toX, toY] });
+    }
+    
+    // Очищаємо виділення
+    clearTouchSelection();
+    return;
+  }
+  
+  // Інакше це початок нового ходу - вибираємо фігуру
   // Очищаємо попередні виділення
   clearTouchSelection();
+  
+  // Переконуємось, що натиснули на фігуру
+  if (!touchedPiece.classList.contains('piece')) {
+    return;
+  }
   
   // Виділяємо нову клітинку
   touchSelectedPiece = touchedPiece;
@@ -163,13 +208,11 @@ function onTouchStart(e) {
   touchSelectedSquare.classList.add('selected');
   
   // Показуємо візуальне виділення всіх клітинок, щоб було зрозуміло, що можна ходити
-  if (isTouchDevice) {
-    document.querySelectorAll('.square').forEach(sq => {
-      if (sq !== touchSelectedSquare) {
-        sq.classList.add('target');
-      }
-    });
-  }
+  document.querySelectorAll('.square').forEach(sq => {
+    if (sq !== touchSelectedSquare) {
+      sq.classList.add('target');
+    }
+  });
   
   // Зберігаємо позицію фігури, з якої починається хід
   dragFrom = { 
@@ -179,44 +222,22 @@ function onTouchStart(e) {
 }
 
 function onTouchEnd(e) {
-  e.preventDefault();
-  
-  if (!dragFrom || !touchSelectedPiece) return;
-  
-  // Знаходимо клітинку, на якій закінчився дотик
-  const targetSquare = e.currentTarget;
-  const toX = parseInt(targetSquare.dataset.x);
-  const toY = parseInt(targetSquare.dataset.y);
-  
-  // Не дозволяємо робити хід на ту ж клітинку
-  if (dragFrom.x === toX && dragFrom.y === toY) {
-    clearTouchSelection();
-    return;
-  }
-  
-  // Надсилаємо хід на сервер
-  send('MAKE_MOVE', { from: [dragFrom.x, dragFrom.y], to: [toX, toY] });
-  
-  // Очищаємо виділення і дані
-  clearTouchSelection();
+  // Нічого не робимо тут, вся логіка в onTouchStart
+  // Це допомагає уникнути проблем, коли touchend спрацьовує не на тій клітинці
 }
 
+// Спрощуємо механізм очищення для сенсорного інтерфейсу
 function clearTouchSelection() {
-  // Прибираємо виділення з попередньої клітинки
-  if (touchSelectedSquare) {
-    touchSelectedSquare.classList.remove('selected');
-  }
-  
-  // Очищаємо дані
-  touchSelectedPiece = null;
-  touchSelectedSquare = null;
-  dragFrom = null;
-  
   // Прибираємо виділення з усіх клітинок
   document.querySelectorAll('.square').forEach(sq => {
     sq.classList.remove('selected');
     sq.classList.remove('target');
   });
+  
+  // Очищаємо дані
+  touchSelectedPiece = null;
+  touchSelectedSquare = null;
+  dragFrom = null;
 }
 
 // Стилі дошки/фігур
@@ -285,4 +306,51 @@ if (isTouchDevice) {
       }
     }
   }, { passive: false });
+}
+
+// Додаємо нові функції для кліків (більш стабільна та надійна взаємодія для мобільних)
+function onPieceClick(e) {
+  const clickedPiece = e.target;
+  
+  // Очищаємо попередні виділення
+  clearTouchSelection();
+  
+  // Виділяємо нову клітинку
+  touchSelectedPiece = clickedPiece;
+  touchSelectedSquare = clickedPiece.parentElement;
+  touchSelectedSquare.classList.add('selected');
+  
+  // Показуємо візуальне виділення всіх клітинок, щоб було зрозуміло, що можна ходити
+  document.querySelectorAll('.square').forEach(sq => {
+    if (sq !== touchSelectedSquare) {
+      sq.classList.add('target');
+    }
+  });
+  
+  // Зберігаємо позицію фігури, з якої починається хід
+  dragFrom = {
+    x: parseInt(clickedPiece.dataset.x),
+    y: parseInt(clickedPiece.dataset.y)
+  };
+}
+
+function onSquareClick(e) {
+  // Якщо немає вибраної фігури, нічого не робимо
+  if (!dragFrom || !touchSelectedPiece) return;
+  
+  const targetSquare = e.currentTarget;
+  const toX = parseInt(targetSquare.dataset.x);
+  const toY = parseInt(targetSquare.dataset.y);
+  
+  // Не дозволяємо робити хід на ту ж саму клітинку
+  if (dragFrom.x === toX && dragFrom.y === toY) {
+    clearTouchSelection();
+    return;
+  }
+  
+  // Надсилаємо хід на сервер
+  send('MAKE_MOVE', { from: [dragFrom.x, dragFrom.y], to: [toX, toY] });
+  
+  // Очищаємо виділення та дані
+  clearTouchSelection();
 } 

@@ -75,15 +75,18 @@ body {
 
 /* Drag highlight */
 .square.selected { 
-  outline: 3px solid #2196f3; 
+  outline: 4px solid #2196f3; 
   z-index: 5; 
-  background-color: rgba(33, 150, 243, 0.4) !important; 
+  background-color: rgba(33, 150, 243, 0.5) !important; 
   position: relative;
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.6);
 }
 
 .square.target { 
-  outline: 3px dashed #4caf50; 
+  outline: 3px dotted #4caf50; 
   background-color: rgba(76, 175, 80, 0.3) !important; 
+  position: relative;
+  cursor: pointer;
 }
 
 /* Modal styles */
@@ -175,6 +178,19 @@ body {
     min-width: 60px;
     min-height: 60px;
   }
+  
+  .square.selected {
+    outline-width: 5px;
+    box-shadow: 0 0 15px rgba(33, 150, 243, 0.7);
+  }
+  
+  .square.target {
+    outline-width: 4px;
+  }
+  
+  .square:active {
+    opacity: 0.8;
+  }
 }
 
 @media (max-width: 380px) {
@@ -192,5 +208,33 @@ body {
   .piece {
     width: 30px;
     height: 30px;
+  }
+}
+
+/* Adaptations for touch devices */
+@media (hover: none) {
+  .piece {
+    cursor: pointer;
+  }
+  
+  .piece:active {
+    transform: scale(1.2);
+    z-index: 10;
+  }
+  
+  .square.target:active {
+    background-color: rgba(76, 175, 80, 0.5) !important;
+    outline-width: 5px;
+  }
+  
+  .controls button {
+    user-select: none;
+    -webkit-touch-callout: none;
+    min-height: 44px;
+  }
+  
+  .controls button:active {
+    background-color: #ddd;
+    transform: scale(0.98);
   }
 } 
