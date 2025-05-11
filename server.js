@@ -124,7 +124,106 @@ wss.on('connection', (ws) => {
           send(ws, 'AWAIT_PROMOTION_CHOICE', { square: [tx, ty] });
           return;
         }
+      } else if (piece.toLowerCase() === 'r') { // Тура
+        // Тура ходить по прямим (вертикалям і горизонталям)
+        if (fx !== tx && fy !== ty) {
+          return send(ws, 'ERROR', { message: 'Тура ходить лише по вертикалі та горизонталі.' });
+        }
+
+        // Перевірка, чи немає перешкод на шляху
+        if (fx === tx) { // Горизонтальний хід
+          const step = fy < ty ? 1 : -1;
+          for (let y = fy + step; y !== ty; y += step) {
+            if (game.board[fx][y]) {
+              return send(ws, 'ERROR', { message: 'На шляху тури є перешкода.' });
+            }
+          }
+        } else { // Вертикальний хід
+          const step = fx < tx ? 1 : -1;
+          for (let x = fx + step; x !== tx; x += step) {
+            if (game.board[x][fy]) {
+              return send(ws, 'ERROR', { message: 'На шляху тури є перешкода.' });
+            }
+          }
+        }
+      } else if (piece.toLowerCase() === 'b') { // Слон
+        // Слон ходить по діагоналям
+        const dx = Math.abs(tx - fx);
+        const dy = Math.abs(ty - fy);
+        if (dx !== dy) {
+          return send(ws, 'ERROR', { message: 'Слон ходить лише по діагоналі.' });
+        }
+
+        // Перевірка, чи немає перешкод на шляху
+        const stepX = tx > fx ? 1 : -1;
+        const stepY = ty > fy ? 1 : -1;
+        
+        let x = fx + stepX;
+        let y = fy + stepY;
+        
+        while (x !== tx) {
+          if (game.board[x][y]) {
+            return send(ws, 'ERROR', { message: 'На шляху слона є перешкода.' });
+          }
+          x += stepX;
+          y += stepY;
+        }
+      } else if (piece.toLowerCase() === 'q') { // Ферзь
+        // Ферзь ходить як тура і слон
+        const dx = Math.abs(tx - fx);
+        const dy = Math.abs(ty - fy);
+        
+        // Перевірка, чи хід або по прямій, або по діагоналі
+        if (fx !== tx && fy !== ty && dx !== dy) {
+          return send(ws, 'ERROR', { message: 'Ферзь ходить по вертикалі, горизонталі або діагоналі.' });
+        }
+
+        // Перевірка, чи немає перешкод на шляху
+        if (fx === tx) { // Горизонтальний хід
+          const step = fy < ty ? 1 : -1;
+          for (let y = fy + step; y !== ty; y += step) {
+            if (game.board[fx][y]) {
+              return send(ws, 'ERROR', { message: 'На шляху ферзя є перешкода.' });
+            }
+          }
+        } else if (fy === ty) { // Вертикальний хід
+          const step = fx < tx ? 1 : -1;
+          for (let x = fx + step; x !== tx; x += step) {
+            if (game.board[x][fy]) {
+              return send(ws, 'ERROR', { message: 'На шляху ферзя є перешкода.' });
+            }
+          }
+        } else { // Діагональний хід
+          const stepX = tx > fx ? 1 : -1;
+          const stepY = ty > fy ? 1 : -1;
+          
+          let x = fx + stepX;
+          let y = fy + stepY;
+          
+          while (x !== tx) {
+            if (game.board[x][y]) {
+              return send(ws, 'ERROR', { message: 'На шляху ферзя є перешкода.' });
+            }
+            x += stepX;
+            y += stepY;
+          }
+        }
+      } else if (piece.toLowerCase() === 'n') { // Кінь
+        // Кінь ходить буквою "Г" - 2 клітинки в одному напрямку і 1 у перпендикулярному
+        const dx = Math.abs(tx - fx);
+        const dy = Math.abs(ty - fy);
+        if (!((dx === 1 && dy === 2) || (dx === 2 && dy === 1))) {
+          return send(ws, 'ERROR', { message: 'Кінь ходить буквою "Г".' });
+        }
+      } else if (piece.toLowerCase() === 'k') { // Король
+        // Король ходить на 1 клітинку в будь-якому напрямку
+        const dx = Math.abs(tx - fx);
+        const dy = Math.abs(ty - fy);
+        if (dx > 1 || dy > 1) {
+          return send(ws, 'ERROR', { message: 'Король ходить лише на одну клітинку.' });
+        }
       }
+
       // TODO: Додати валідацію для інших фігур
       game.board[tx][ty] = piece;
       game.board[fx][fy] = '';
