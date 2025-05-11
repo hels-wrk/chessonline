@@ -5,6 +5,9 @@ let currentBoardState = null;
 let currentPlayer = null;
 let selectedStyleBoard = localStorage.getItem('boardStyle') || 'classic';
 let selectedStylePieces = localStorage.getItem('pieceStyle') || 'flat';
+let isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+let touchSelectedPiece = null;
+let touchSelectedSquare = null;
 
 const gameIdInput = document.getElementById('gameIdInput');
 const createGameButton = document.getElementById('createGameButton');
@@ -99,12 +102,27 @@ function renderBoard(board, color) {
         pieceDiv.dataset.x = x;
         pieceDiv.dataset.y = y;
         const isOwn = (playerColor === 'white' && piece === piece.toUpperCase()) || (playerColor === 'black' && piece === piece.toLowerCase());
-        pieceDiv.draggable = isOwn && currentPlayer === playerColor;
-        if (pieceDiv.draggable) pieceDiv.addEventListener('dragstart', onDragStart);
+        pieceDiv.draggable = isOwn && currentPlayer === playerColor && !isTouchDevice;
+        
+        if (pieceDiv.draggable) {
+          pieceDiv.addEventListener('dragstart', onDragStart);
+        }
+        
+        // Додаємо обробники тач-подій
+        if (isOwn && currentPlayer === playerColor && isTouchDevice) {
+          pieceDiv.addEventListener('touchstart', onTouchStart, { passive: false });
+        }
+        
         square.appendChild(pieceDiv);
       }
       square.addEventListener('dragover', e => e.preventDefault());
       square.addEventListener('drop', onDrop);
+      
+      // Додаємо тач-обробники для клітинок
+      if (isTouchDevice) {
+        square.addEventListener('touchend', onTouchEnd);
+      }
+      
       chessBoardContainer.appendChild(square);
     }
   }
@@ -114,12 +132,72 @@ let dragFrom = null;
 function onDragStart(e) {
   dragFrom = { x: +e.target.dataset.x, y: +e.target.dataset.y };
 }
+
 function onDrop(e) {
   if (!dragFrom) return;
   const toX = +e.currentTarget.dataset.x;
   const toY = +e.currentTarget.dataset.y;
   send('MAKE_MOVE', { from: [dragFrom.x, dragFrom.y], to: [toX, toY] });
   dragFrom = null;
+}
+
+// Функції для тач-подій
+function onTouchStart(e) {
+  e.preventDefault();
+  const touchedPiece = e.target;
+  
+  // Очищаємо попередні виділення
+  clearTouchSelection();
+  
+  // Виділяємо нову клітинку
+  touchSelectedPiece = touchedPiece;
+  touchSelectedSquare = touchedPiece.parentElement;
+  touchSelectedSquare.classList.add('selected');
+  
+  // Зберігаємо позицію фігури, з якої починається хід
+  dragFrom = { 
+    x: +touchedPiece.dataset.x, 
+    y: +touchedPiece.dataset.y 
+  };
+}
+
+function onTouchEnd(e) {
+  if (!dragFrom || !touchSelectedPiece) return;
+  
+  // Знаходимо клітинку, на якій закінчився дотик
+  const targetSquare = e.currentTarget;
+  const toX = +targetSquare.dataset.x;
+  const toY = +targetSquare.dataset.y;
+  
+  // Не дозволяємо робити хід на ту ж клітинку
+  if (dragFrom.x === toX && dragFrom.y === toY) {
+    clearTouchSelection();
+    return;
+  }
+  
+  // Надсилаємо хід на сервер
+  send('MAKE_MOVE', { from: [dragFrom.x, dragFrom.y], to: [toX, toY] });
+  
+  // Очищаємо виділення і дані
+  clearTouchSelection();
+}
+
+function clearTouchSelection() {
+  // Прибираємо виділення з попередньої клітинки
+  if (touchSelectedSquare) {
+    touchSelectedSquare.classList.remove('selected');
+  }
+  
+  // Очищаємо дані
+  touchSelectedPiece = null;
+  touchSelectedSquare = null;
+  dragFrom = null;
+  
+  // Прибираємо виділення з усіх клітинок
+  document.querySelectorAll('.square').forEach(sq => {
+    sq.classList.remove('selected');
+    sq.classList.remove('target');
+  });
 }
 
 // Стилі дошки/фігур
@@ -139,4 +217,19 @@ function onDrop(e) {
 });
 
 // Підключення при першій дії
-if (!websocket) connectWebSocket(); 
+if (!websocket) connectWebSocket();
+
+// Додаємо обробник для блокування масштабування сторінки для мобільних пристроїв
+document.addEventListener('touchmove', function(e) {
+  if (e.touches.length > 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Встановлюємо фіксований розмір вьюпорта для мобільних пристроїв
+if (isTouchDevice) {
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  if (viewportMeta) {
+    viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+  }
+} 
