@@ -18,12 +18,12 @@ const promotionModal = document.getElementById('promotionModal');
 
 function connectWebSocket() {
   websocket = new WebSocket(WS_URL.replace(/^http/, 'ws'));
-  websocket.onopen = () => displayMessage('З’єднання встановлено', 'info');
+  websocket.onopen = () => displayMessage("З'єднання встановлено", 'info');
   websocket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
     handleServerMessage(msg);
   };
-  websocket.onclose = () => displayMessage('З’єднання втрачено', 'error');
+  websocket.onclose = () => displayMessage("З'єднання втрачено", 'error');
 }
 
 function displayMessage(text, type = 'info') {
@@ -102,25 +102,28 @@ function renderBoard(board, color) {
         pieceDiv.dataset.x = x;
         pieceDiv.dataset.y = y;
         const isOwn = (playerColor === 'white' && piece === piece.toUpperCase()) || (playerColor === 'black' && piece === piece.toLowerCase());
-        pieceDiv.draggable = isOwn && currentPlayer === playerColor && !isTouchDevice;
         
-        if (pieceDiv.draggable) {
+        // На ПК використовуємо нативне drag and drop
+        if (isOwn && currentPlayer === playerColor && !isTouchDevice) {
+          pieceDiv.draggable = true;
           pieceDiv.addEventListener('dragstart', onDragStart);
         }
         
-        // Додаємо обробники тач-подій
+        // На сенсорних пристроях використовуємо тач-події
         if (isOwn && currentPlayer === playerColor && isTouchDevice) {
           pieceDiv.addEventListener('touchstart', onTouchStart, { passive: false });
         }
         
         square.appendChild(pieceDiv);
       }
+      
+      // Звичайний drop для ПК
       square.addEventListener('dragover', e => e.preventDefault());
       square.addEventListener('drop', onDrop);
       
-      // Додаємо тач-обробники для клітинок
+      // Тач-події для мобільних
       if (isTouchDevice) {
-        square.addEventListener('touchend', onTouchEnd);
+        square.addEventListener('touchend', onTouchEnd, { passive: false });
       }
       
       chessBoardContainer.appendChild(square);
@@ -129,14 +132,19 @@ function renderBoard(board, color) {
 }
 
 let dragFrom = null;
+
 function onDragStart(e) {
-  dragFrom = { x: +e.target.dataset.x, y: +e.target.dataset.y };
+  dragFrom = { x: parseInt(e.target.dataset.x), y: parseInt(e.target.dataset.y) };
+  e.dataTransfer.setData('text/plain', 'piece');
 }
 
 function onDrop(e) {
+  e.preventDefault();
   if (!dragFrom) return;
-  const toX = +e.currentTarget.dataset.x;
-  const toY = +e.currentTarget.dataset.y;
+  
+  const toX = parseInt(e.currentTarget.dataset.x);
+  const toY = parseInt(e.currentTarget.dataset.y);
+  
   send('MAKE_MOVE', { from: [dragFrom.x, dragFrom.y], to: [toX, toY] });
   dragFrom = null;
 }
@@ -154,20 +162,31 @@ function onTouchStart(e) {
   touchSelectedSquare = touchedPiece.parentElement;
   touchSelectedSquare.classList.add('selected');
   
+  // Показуємо візуальне виділення всіх клітинок, щоб було зрозуміло, що можна ходити
+  if (isTouchDevice) {
+    document.querySelectorAll('.square').forEach(sq => {
+      if (sq !== touchSelectedSquare) {
+        sq.classList.add('target');
+      }
+    });
+  }
+  
   // Зберігаємо позицію фігури, з якої починається хід
   dragFrom = { 
-    x: +touchedPiece.dataset.x, 
-    y: +touchedPiece.dataset.y 
+    x: parseInt(touchedPiece.dataset.x), 
+    y: parseInt(touchedPiece.dataset.y) 
   };
 }
 
 function onTouchEnd(e) {
+  e.preventDefault();
+  
   if (!dragFrom || !touchSelectedPiece) return;
   
   // Знаходимо клітинку, на якій закінчився дотик
   const targetSquare = e.currentTarget;
-  const toX = +targetSquare.dataset.x;
-  const toY = +targetSquare.dataset.y;
+  const toX = parseInt(targetSquare.dataset.x);
+  const toY = parseInt(targetSquare.dataset.y);
   
   // Не дозволяємо робити хід на ту ж клітинку
   if (dragFrom.x === toX && dragFrom.y === toY) {
@@ -221,7 +240,20 @@ if (!websocket) connectWebSocket();
 
 // Додаємо обробник для блокування масштабування сторінки для мобільних пристроїв
 document.addEventListener('touchmove', function(e) {
+  if (e.touches.length > 1 || dragFrom) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('touchstart', function(e) {
   if (e.touches.length > 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Запобігання скролу під час гри на мобільних
+chessBoardContainer.addEventListener('touchmove', function(e) {
+  if (dragFrom) {
     e.preventDefault();
   }
 }, { passive: false });
@@ -232,4 +264,25 @@ if (isTouchDevice) {
   if (viewportMeta) {
     viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
   }
+  
+  // Додатковий код для мобільних: підсвічування доступних клітинок
+  document.addEventListener('touchmove', function(e) {
+    if (dragFrom && e.touches && e.touches[0]) {
+      const touch = e.touches[0];
+      const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+      
+      // Прибираємо виділення з усіх клітинок
+      document.querySelectorAll('.square').forEach(sq => {
+        if (sq !== touchSelectedSquare) {
+          sq.classList.remove('target');
+        }
+      });
+      
+      // Якщо навели на клітинку, виділяємо її
+      const square = elements.find(el => el.classList.contains('square'));
+      if (square && square !== touchSelectedSquare) {
+        square.classList.add('target');
+      }
+    }
+  }, { passive: false });
 } 

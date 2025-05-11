@@ -75,14 +75,15 @@ body {
 
 /* Drag highlight */
 .square.selected { 
-  outline: 2px solid #2196f3; 
-  z-index: 1; 
-  background-color: rgba(33, 150, 243, 0.3) !important; 
+  outline: 3px solid #2196f3; 
+  z-index: 5; 
+  background-color: rgba(33, 150, 243, 0.4) !important; 
+  position: relative;
 }
 
 .square.target { 
-  outline: 2px dashed #4caf50; 
-  background-color: rgba(76, 175, 80, 0.2) !important; 
+  outline: 3px dashed #4caf50; 
+  background-color: rgba(76, 175, 80, 0.3) !important; 
 }
 
 /* Modal styles */
@@ -124,17 +125,21 @@ body {
   #chessBoardContainer {
     grid-template-columns: repeat(8, 40px);
     grid-template-rows: repeat(8, 40px);
+    border-width: 3px;
   }
   
   .square {
     width: 40px;
     height: 40px;
     font-size: 28px;
+    touch-action: none;
   }
   
   .piece {
     width: 34px;
     height: 34px;
+    user-select: none;
+    -webkit-user-select: none;
   }
   
   .controls {
@@ -152,12 +157,23 @@ body {
   .style-select button {
     padding: 5px;
     font-size: 12px;
+    min-height: 36px;
   }
   
-  #gameIdInput {
+  #gameIdInput, button {
     width: 100%;
-    padding: 8px;
+    padding: 10px;
     box-sizing: border-box;
+    font-size: 16px;
+    min-height: 40px;
+  }
+  
+  /* Більше простору для кліків на мобільних */
+  .promotion-choices button {
+    padding: 15px;
+    margin: 5px;
+    min-width: 60px;
+    min-height: 60px;
   }
 }
 
