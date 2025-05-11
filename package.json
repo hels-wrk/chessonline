@@ -1,0 +1,13 @@
+{
+  "name": "chessonline",
+  "version": "1.0.0",
+  "description": "Мінімалістичний онлайн шаховий додаток на WebSocket.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "ws": "^8.15.1"
+  }
+} 

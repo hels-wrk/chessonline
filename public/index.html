@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess Online</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="controls">
+    <input id="gameIdInput" type="text" placeholder="ID гри">
+    <button id="createGameButton">Нова гра</button>
+    <button id="joinGameButton">Підключитися</button>
+    <div class="style-select">
+      <span>Стиль дошки:</span>
+      <button class="board-style" data-style="classic">Classic</button>
+      <button class="board-style" data-style="wood">Wood</button>
+      <button class="board-style" data-style="dark">Dark</button>
+      <span>Стиль фігур:</span>
+      <button class="piece-style" data-style="flat">Flat</button>
+      <button class="piece-style" data-style="3d">3D</button>
+      <button class="piece-style" data-style="neo">Neo</button>
+    </div>
+  </div>
+  <div id="messageArea"></div>
+  <div id="chessBoardContainer"></div>
+  <div id="promotionModal" class="modal hidden">
+    <div class="modal-content">
+      <span>Виберіть фігуру для перетворення:</span>
+      <div class="promotion-choices">
+        <button data-piece="q">Ферзь</button>
+        <button data-piece="r">Тура</button>
+        <button data-piece="b">Слон</button>
+        <button data-piece="n">Кінь</button>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html> 
